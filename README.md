@@ -1,4 +1,4 @@
-Q# LiveSPICE-Generator (`livespice-gen`)
+# LiveSPICE-Generator (`livespice-gen`)
 
 A high-throughput, multi-threaded dataset generation engine and batch simulator for LiveSPICE circuit schematics (`.schx`). Built specifically for generating training datasets for deep neural audio models (RTNeural, Neural Amp Modeler / NAM, PyTorch GRU/LSTM/WaveNet) on analog hardware: guitar overdrive and distortion pedals, high-voltage vacuum tube preamplifiers, active tone stacks, and non-linear filter topologies.
 
