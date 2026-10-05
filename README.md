@@ -61,17 +61,11 @@ most of the examples below do.
 ### Pre-built (what was tested here)
 
 ```
-dist/win-x64/
-  livespice-gen.exe     self-contained single-file executable, no .NET needed
-  Components/
-    Tubes.xml           <- this is the ONLY file actually shipped
+livespice-gen.exe     self-contained single-file executable, no .NET needed
+Components/
+        Tubes.xml           <- this is the ONLY file actually shipped
 ```
 
-Verified: runs standalone with no arguments and no .NET runtime present.
-
-> The previous README showed `Transistors.xml`, `Diodes.xml` and `OpAmps.xml` in that
-> folder. They are not there. If a circuit needs a transistor or op-amp model that
-> LiveSPICE cannot find on disk, you will find out at render time.
 
 ### From source
 
@@ -96,7 +90,7 @@ dotnet publish src/LiveSPICE-Generator.csproj -c Release -r win-x64 --self-conta
 ## Quick start
 
 ```bash
-GEN=dist/win-x64/livespice-gen.exe
+./livespice-gen.exe
 
 # 1. What can this circuit do?
 $GEN controls "examples/circuits/Big Muff Pi.schx"
@@ -158,10 +152,7 @@ This is the fastest path to NAM data. Measured: 10.00 s of Big Muff audio in 5.9
 | `process` | — | Renders one fixed setting across an entire input file. Writes one WAV. |
 | `verify` | — | Checks the manifest against disk. **Does not re-analyse audio.** |
 
-### Options and their *real* defaults
-
-These are the values in the shipped binary, cross-checked against `src/Cli.cs` and
-`src/Renderer.cs`. The previous README's table was wrong on three of them.
+### Options
 
 | Option | Argument | Real default | Notes |
 |---|---|---|---|
@@ -237,11 +228,7 @@ top-level "joint":"sweep"        ->  plan: ... Independent joint     (ignored)
 "sampling"."input"."gainDb":..   ->  drew exactly -3.00 dB and +3.00 dB (honoured)
 ```
 
-**Three of the twelve bundled example specs have this bug in them** — including
-`10_crybaby_wah_sweep.spec.json`, which is named for a sweep but plans
-`Independent joint`. Read the `plan` output and check the joint mode before you render.
-
-### Example (corrected — this is the shape that actually works)
+### Example
 
 ```json5
 {
@@ -631,11 +618,7 @@ multi-hour job. Use `plan` for an ETA and `--limit` to smoke-test.
 
 ## Bundled examples
 
-Twelve spec files ship in `examples/`. **The previous README's table named six of them and
-every name was wrong** — none of `bd2-breakup-focus.spec.json`,
-`bigmuff-balanced.spec.json`, `jcm800-switched-preamp.spec.json`,
-`mark2c-multigang-preamp.spec.json`, `mark2c-geq-preamp.spec.json` or
-`crybaby-wah-sweep.spec.json` exists. The real list:
+Twelve spec files ship in `examples/`.
 
 | Spec | Circuit |
 |---|---|
