@@ -20,7 +20,7 @@ A high-throughput, multi-threaded dataset generation engine and batch simulator 
 12. [Downstream Neural Network Training (PyTorch & RTNeural)](#12-downstream-neural-network-training-pytorch--rtneural)
 13. [Solver Tuning, Diagnostics & Troubleshooting](#13-solver-tuning-diagnostics--troubleshooting)
 14. [Bundled Circuit Examples & Benchmark Library](#14-bundled-circuit-examples--benchmark-library)
-15. [Automated CI/CD & Cross-Platform Releases](#15-automated-cicd--cross-platform-releases)
+15. [About Me](#15-About-Me)
 16. [License & Acknowledgments](#16-license--acknowledgments)
 
 ---
@@ -569,7 +569,7 @@ float out = model.forward(inputs);
 
 ---
 
-## About Me
+## 15. About Me
 
 **Yahia Kemari** — Telecommunications Engineer (M2), USTHB, Algeria.
 Interested in networks, infrastructure, cybersecurity, and automation.
