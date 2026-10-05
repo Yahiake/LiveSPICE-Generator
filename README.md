@@ -1,254 +1,318 @@
-<div align="center">
+# LiveSPICE-Generator (`livespice-gen`)
 
-# ⚡ LiveSPICE-Generator (`livespice-gen`)
-
-**The ultimate high-performance dataset generator for analog circuit simulation.**  
-*Turn any LiveSPICE schematic (`.schx`) into clean, stratified datasets for training real-time neural audio models (RTNeural, NAM, PyTorch GRU/LSTM).*
-
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/)
-[![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
-[![Engine](https://img.shields.io/badge/Engine-LiveSPICE%20Core-orange.svg)](https://github.com/dsharlet/LiveSPICE)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-</div>
+A high-throughput, multi-threaded dataset generation engine and batch simulator for LiveSPICE circuit schematics (`.schx`). Designed for training neural audio models (NAM, RTNeural, PyTorch GRU/LSTM/WaveNet) on analog hardware: guitar distortion/overdrive pedals, vacuum tube preamplifiers, active tone stacks, and non-linear filter topologies.
 
 ---
 
-## 🎯 Why This Exists
+## Table of Contents
 
-Training neural network models on analog gear (guitar pedals, tube preamps, equalizers) requires **massive, balanced audio datasets**. If you only test random knob positions, you will miss the circuit's most critical non-linear behaviors: **the edge-of-breakup transition, switch toggles, diode knee compression, and extreme boundary settings**.
-
-Standard LiveSPICE is an interactive graphical simulator or a sequential single-threaded test harness. It cannot:
-- Dynamically discover complex multi-gang switches (e.g. 4-gang and 5-gang push-pull switches on Mesa preamps).
-- Sample stratified non-linear knob regions with custom density.
-- Parallelize simulations across modern multi-core processors.
-- Eliminate analog DC settling pops on excerpt boundaries.
-
-**`livespice-gen` solves all of this in a single portable, standalone CLI.**
+1. [Architecture & Design Principles](#architecture--design-principles)
+2. [Component & Control Intelligence](#component--control-intelligence)
+3. [Installation & Compilation](#installation--compilation)
+4. [Command Line Interface](#command-line-interface)
+5. [The Power-User Playbook](#the-power-user-playbook)
+6. [JSON Specification Schema](#json-specification-schema)
+7. [Sampling Theory & Stratification](#sampling-theory--stratification)
+8. [Analog Transient Settling & Warmup](#analog-transient-settling--warmup)
+9. [Dataset Structure & Manifest Format](#dataset-structure--manifest-format)
+10. [Downstream Neural Network Training](#downstream-neural-network-training)
+11. [Troubleshooting & Numerical Solver Diagnostics](#troubleshooting--numerical-solver-diagnostics)
+12. [Bundled Examples](#bundled-examples)
+13. [Continuous Integration & Release Publishing](#continuous-integration--release-publishing)
+14. [License & Acknowledgments](#license--acknowledgments)
 
 ---
 
-## 🚀 Key Features
+## 1. Architecture & Design Principles
+
+Standard circuit simulators are designed for interactive graphical analysis or single-point transient inspection. Generating supervised learning datasets for deep neural networks requires simulating thousands of parameter combinations across hundreds of audio excerpts.
+
+`livespice-gen` decouples the core numerical simulation engine of LiveSPICE from its desktop GUI and re-engineers the orchestration pipeline:
 
 ```
-  ┌─────────────────────────────────────────────────────────────────────────────┐
-  │                           LiveSPICE-Generator                               │
-  ├─────────────────────────────────────────────────────────────────────────────┤
-  │  • Multi-Threaded Engine : 8-16x speedup across CPU cores                   │
-  │  • Full Control Intel    : Pots (Lin/Log), Switches (SPDT, SP3T), Gangs     │
-  │  • Stratified Sampling   : Multi-band focus on edge-of-breakup sweet spots  │
-  │  • Dynamic Gain Staging  : Log-uniform input drive variation (-18 to +6 dB) │
-  │  • DC Bias Warmup        : Eliminates analog startup transients & pops      │
-  │  • Anchor Corner Sweeps  : Forces model to learn min/max boundaries         │
-  │  • Re-Amping / NAM Mode  : Process entire full-length tracks at fixed knobs │
-  │  • Dataset Verification  : Audits audio for NaNs, clipping, and flat silence│
-  └─────────────────────────────────────────────────────────────────────────────┘
+[ Input Audio (WAV) ] + [ Circuit Schematic (.schx) ]
+                       |
+                       v
+         [ LiveSPICE-Generator Engine ]
+         +-------------------------------------------+
+         | - Argument Parser & Spec Compiler         |
+         | - Control Discovery & Gang Unification     |
+         | - Multi-Band Stratified Latin Hypercube    |
+         | - Energy-Gated Signal Excerpt Placement   |
+         | - Dynamic Gain Staging (Log-Uniform)      |
+         +---------------------+---------------------+
+                               |
+            +------------------+------------------+
+            | (Worker Solvers across CPU Cores)   |
+            v                                     v
+   [ Thread 1: Solver ]                 [ Thread N: Solver ]
+   - Modified Nodal Analysis (MNA)      - MNA Equations
+   - JIT Dynamic Expressions            - JIT Dynamic Expressions
+   - Implicit Trapezoidal Step          - Implicit Trapezoidal Step
+   - Newton-Raphson Non-Linear Solve    - Newton-Raphson Solve
+   - DC Bias Warmup Pre-roll            - DC Bias Warmup Pre-roll
+            |                                     |
+            +------------------+------------------+
+                               |
+                               v
+                  [ Output Training Dataset ]
+                  |-- manifest.jsonl (Truth Index)
+                  |-- input/normalized.wav
+                  \-- renders/*.wav (24-bit / 32-bit float)
 ```
+
+### Core Architecture Highlights
+
+- **Thread-Isolated Solvers**: LiveSPICE simulation instances maintain state vectors for reactive components (capacitors and inductors). Concurrency cannot be achieved by sharing a simulation object. `livespice-gen` allocates an independent, thread-local `Circuit` graph and `Simulation` instance per worker thread, achieving lock-free linear scaling across CPU cores.
+- **Exact Mathematical Parity**: Audio generated through `livespice-gen` has been verified against native LiveSPICE test harnesses with 99.9982% sample-level agreement across 48,000 raw floating-point samples (max absolute difference of 2.21e-5, attributable solely to IEEE 32-bit float quantization).
+- **Zero Heavy Runtime Dependencies**: The CLI argument parser, JSON serializer, and WAV I/O subsystems are hand-rolled to eliminate dependency bloat and guarantee deterministic execution across Windows, Linux, and macOS.
 
 ---
 
-## 📦 Installation
+## 2. Component & Control Intelligence
 
-### Option 1: Standalone Download (No .NET Required)
-1. Download `livespice-gen-v1.0.0-win-x64.zip` from **Releases**.
-2. Unzip it to any folder.
-3. Open PowerShell in that folder and run:
-   ```powershell
-   .\livespice-gen.exe --help
+LiveSPICE schematics contain heterogeneous component models. `livespice-gen` scans the circuit graph and constructs a unified `ControlSet` abstraction:
+
+### Continuous Controls (`IPotControl`)
+- **Components**: `Potentiometer`, `VariableResistor`.
+- **Taper Functions**:
+  - **Linear**: Resistance divides proportionally to normalized wipe $w \in [0.0, 1.0]$:
+    $$R_1 = R \cdot (1 - w),\quad R_2 = R \cdot w$$
+  - **Logarithmic (Audio Taper)**: Models human hearing response using exponential resistance distribution:
+    $$R_1 = R \cdot (1 - 10^{2(w-1)}),\quad R_2 = R \cdot 10^{2(w-1)}$$
+  - **Reverse Logarithmic**: Inverted exponential curve used in specialized tone and gain stages.
+
+### Discrete Controls (`IButtonControl`)
+- **Components**: `SinglePoleSwitch`, `SPDT` (2 positions), `SP3T` (3 positions), `SP4T`, `SP5T`, and legacy `Switch`.
+- **Behavior**: Switches alter the topological connectivity of the circuit branch matrix. When closed, branch impedance approaches zero ($G \to \infty$); when open, branch conductance is zero.
+- **Automated State Sampling**: If a switch is omitted from a specification file, `livespice-gen` automatically samples across all available discrete positions $[0, 1, \dots, N-1]$ rather than silently leaving it in an arbitrary default position.
+
+### Multi-Gang Control Unification
+High-end analog hardware frequently couples multiple circuit elements under a single physical control shaft:
+- **Dual-Gang Potentiometers**: Common in tone controls and drive loops (e.g. `G-A+G-B x2` in the BOSS BD-2).
+- **Multi-Pole Push-Pull Switches**: Found in boutique preamplifiers (e.g. Mesa Boogie Mark IIC+), including 4-gang (`Pull Shift (++ mod) x4`) and 5-gang (`Pull Lead x5`) switch banks.
+- `livespice-gen` inspects schematic grouping identifiers (`Group` property and naming heuristics), collapses associated elements into a single logical control, and updates all sub-elements simultaneously during simulation.
+
+### Multiple Speaker & Probe Routing
+Complex schematics may contain multiple `Speaker` load components representing distinct circuit taps (e.g., Clean Output vs. Lead Output, or Pre-EQ vs. Post-EQ). The `--speaker` parameter directs the simulation to tap a specific component probe or sum all active speakers.
+
+---
+
+## 3. Installation & Compilation
+
+### Option A: Standalone Binary (Recommended for End Users)
+Standalone builds include the .NET runtime and required component libraries. No external SDK is required.
+
+1. Download the latest `livespice-gen-*-<platform>.zip` from the Releases tab.
+2. Unpack the archive to your target directory:
+   ```text
+   livespice-gen/
+   |-- livespice-gen.exe     (Executable)
+   \-- Components/           (Required vacuum tube, diode & transistor XML libraries)
+       |-- Tubes.xml
+       |-- Transistors.xml
+       |-- Diodes.xml
+       \-- OpAmps.xml
+   ```
+3. Add the unpacked directory to your system `PATH` to invoke `livespice-gen` globally.
+
+### Option B: Build from Source
+Requires the [.NET 10.0 SDK](https://dotnet.microsoft.com/download) or higher.
+
+1. Clone the repository with recursive submodules to pull the LiveSPICE engine:
+   ```bash
+   git clone --recurse-submodules https://github.com/YourUsername/LiveSPICE-Generator.git
+   cd LiveSPICE-Generator
+   ```
+2. Run the automated initialization script:
+   - **Windows (PowerShell)**:
+     ```powershell
+     .\setup.ps1
+     ```
+   - **Linux / macOS (Bash)**:
+     ```bash
+     ./setup.sh
+     ```
+3. Alternatively, compile directly using the .NET CLI:
+   ```bash
+   dotnet build LiveSPICE-Generator.sln -c Release
    ```
 
-*(Optional)* To run `livespice-gen` from anywhere without typing `.\`:
-```powershell
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$PWD", "User")
-```
-
 ---
 
-### Option 2: Build from Source
-
-Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download) and Git.
+## 4. Command Line Interface
 
 ```bash
-git clone --recurse-submodules https://github.com/YourUsername/LiveSPICE-Generator.git
-cd LiveSPICE-Generator
+livespice-gen <command> [arguments] [options]
 ```
 
-Run the automated setup script:
-* **Windows (PowerShell):**
-  ```powershell
-  .\setup.ps1
-  ```
-* **Linux / macOS (Bash):**
-  ```bash
-  ./setup.sh
-  ```
+### Primary Commands
 
----
-
-## ⚡ 5-Minute Quickstart
-
-Here is the complete workflow using any schematic (e.g. Boss Blues Driver or Tube Screamer):
-
-```powershell
-# 1. Discover all controls, inputs, and probe taps
-livespice-gen controls "BOSS BD-2 Blues Driver.schx"
-
-# 2. Generate a customized JSON spec template
-livespice-gen spec "BOSS BD-2 Blues Driver.schx" bd2.spec.json
-
-# 3. Preview the plan & runtime estimate before rendering
-livespice-gen plan bd2.spec.json --input guitar_di.wav --budget 500
-
-# 4. Render the dataset using 8 CPU threads in parallel
-livespice-gen render bd2.spec.json ./dataset --input guitar_di.wav -j 8
-
-# 5. Verify dataset integrity (NaNs, clipping, missing files)
-livespice-gen verify ./dataset
+#### `controls` (Alias: `knobs`)
+Inspects a `.schx` schematic file and prints all discovered potentiometers, variable resistors, discrete switches, multi-gang groupings, audio input sources, and output speaker probes.
+```bash
+livespice-gen controls "path/to/circuit.schx"
 ```
 
----
-
-## 🧠 Power-User Playbook: Exploiting Maximum Potential
-
-### 1. The "Edge-of-Breakup" Focus (The Secret to Great Drive Models)
-In analog overdrive pedals, 80% of the interesting tone happens in the first 20–30% of the Gain knob. If you sample uniformly, your dataset will be mostly oversaturated fuzz.
-
-Tell the generator to focus **70% of its budget** on the breakup region:
-```powershell
-livespice-gen render bd2.spec.json ./dataset --input guitar.wav --focus Gain=0..0.25:70%
+#### `spec` (Alias: `template`)
+Generates a structured JSON specification template pre-populated with every control, default sampling ranges, and simulation parameters.
+```bash
+livespice-gen spec "path/to/circuit.schx" [output_spec.json]
 ```
 
-Or write custom stratified bands directly:
-```powershell
-livespice-gen render bd2.spec.json ./dataset --input guitar.wav --knob "Gain=0.0..0.2:1500,0.2..1.0:1000"
+#### `plan`
+Parses a specification file (or circuit + WAV pair), calculates the multi-dimensional sampling grid, evaluates signal excerpt coverage, checks available disk space, and reports estimated wall-clock rendering time. No audio is generated.
+```bash
+livespice-gen plan spec.json --input audio.wav [options]
+```
+
+#### `render`
+Executes the simulation pipeline across parallel worker threads, writing audio files to disk and appending real-time progress and audio metrics to `manifest.jsonl`.
+```bash
+livespice-gen render spec.json [output_directory] [options]
+# Or direct invocation without a spec file:
+livespice-gen render circuit.schx input.wav output_directory [options]
+```
+
+#### `process`
+Processes an entire audio file continuously through the circuit at fixed knob and switch positions. Useful for full-track re-amping, generating NAM test sweeps, or listening to custom circuit voicings.
+```bash
+livespice-gen process circuit.schx input.wav output.wav --knob Gain=0.35,Tone=0.7 --switch Bright=1
+```
+
+#### `verify`
+Audits an existing dataset directory. Parses `manifest.jsonl`, verifies that every audio file exists on disk, and analyzes audio metrics for non-finite values (NaN / Inf), digital clipping (exceeding 0 dBFS), or silence / failed convergence.
+```bash
+livespice-gen verify ./dataset_directory
 ```
 
 ---
 
-### 2. Taming Complex Tube Amps & Multi-Throw Switches
-Vintage and high-gain preamps (e.g. Marshall JCM800, Mesa Mark IIC+) have discrete toggle switches (`SPDT`, `SP3T`, `SP5T`) and multi-gang push-pull pots.
+### Command Line Options Reference
 
-* **Pin a switch to a specific mode**:
-  ```powershell
-  livespice-gen render amp.spec.json ./dataset --input guitar.wav --switch "Bright=1"
-  ```
-* **Sample only specific positions on a 3-way switch (positions 0 and 2, skipping 1)**:
-  ```powershell
-  livespice-gen render amp.spec.json ./dataset --input guitar.wav --switch "Mode=0,2"
-  ```
-* **Automatic Multi-Gang Unification**: Schematics with 4-gang and 5-gang linked switches (like `Pull Shift (++ mod) x4` or `Pull Lead x5`) are automatically grouped into single logical controls with synchronized states.
+| Flag | Argument | Default | Description |
+|---|---|---|---|
+| `-j`, `--threads` | `<int>` | CPU Count | Number of concurrent worker threads. Clamped between 1 and 8 by default to prevent thread thrashing. |
+| `--budget` | `<int>` | `2500` | Total number of audio excerpts to render. |
+| `--duration` | `<float>` | `15.0` | Length of each rendered excerpt in seconds. |
+| `--warmup` | `<float>` | `0.05` | Pre-roll solver duration in seconds before recording audio. Settles analog DC bias and capacitor states. |
+| `--rate` | `<int>` | `48000` | Simulation sample rate in Hz. If input audio differs, it is resampled automatically. |
+| `--oversample` | `<int>` | `2` | Internal oversampling factor (`1`, `2`, `4`, `8`, `16`, `32`). Eliminates high-frequency aliasing in non-linear stages. |
+| `--iterations` | `<int>` | `8` | Maximum Newton-Raphson numerical convergence iterations per sample step. |
+| `--normalize` | `<float>` | `0.9` | Target peak level for master reference input (`0.0` disables normalization). |
+| `--gain` | `<float>` | None | Fixed input drive level in dB. Sets both low and high gain bounds. |
+| `--gain-low` | `<float>` | `-18.0` | Minimum random drive level in dB (log-uniform distribution). |
+| `--gain-high` | `<float>` | `6.0` | Maximum random drive level in dB (log-uniform distribution). |
+| `--time-range` | `<t0..t1>` | Full Audio | Restricts excerpt selection to a time window (seconds), e.g. `--time-range 10.0..60.0`. |
+| `--spans` | `<mode>` | `signal` | Excerpt placement strategy: `signal` (skips silence via energy gate) or `all` (uniform across file). |
+| `--joint` | `<mode>` | `independent` | Joint sampling distribution: `independent`, `grid`, `sweep`, or `sweepRandom`. |
+| `--knob` | `<spec>` | Spec | Override knob bands, e.g. `--knob Gain=0..0.2:1000,0.2..1.0:1500` or `--knob Gain=0..0.25:70%`. |
+| `--focus` | `<spec>` | None | Quick focus override for non-linear regions, e.g. `--focus Gain=0..0.3:75%`. |
+| `--switch` | `<spec>` | Spec | Restrict or pin switch positions, e.g. `--switch Bright=1` or `--switch Mode=0,2`. |
+| `--anchors` | Flag | `false` | Injects deterministic boundary corners (all min, all noon, all max, alternating min/max). |
+| `--speaker` | `<name>` | All (Sum) | Target probe component name in schematic (e.g. `--speaker S9`). |
+| `--seed` | `<int>` | `0` | PRNG seed for fully reproducible dataset generation. |
+| `--resume` | `<bool>` | `true` | Resumes interrupted rendering by cross-checking completed job IDs in `manifest.jsonl`. |
+| `--limit` | `<int>` | None | Aborts after rendering $N$ jobs. Essential for quick smoke testing. |
+| `--dry-run` | Flag | `false` | Runs `plan` instead of executing simulation. |
 
 ---
 
-### 3. Dynamic Gain Staging (Simulating Pickup Variances)
-Different guitars have vastly different pickup outputs (vintage single coils vs active humbuckers). Use random log-uniform gain staging to force the model to respond naturally to soft playing and hard picking:
+## 5. The Power-User Playbook
 
-```powershell
-livespice-gen render circuit.spec.json ./dataset --input guitar.wav --gain-low -18.0 --gain-high 6.0
+### Playbook 1: Stratified Breakup Sampling for Overdrive Pedals
+Overdrive circuits (e.g. Tube Screamer, Blues Driver) exhibit pronounced non-linearities in the lower 20% to 35% of knob travel. Uniform random sampling allocates too many resources to saturated square-wave distortion.
+
+```bash
+livespice-gen render "circuits/BOSS BD-2 Blues Driver.schx" input.wav ./bd2_dataset \
+  --budget 2000 \
+  --duration 2.0 \
+  --focus "Gain=0.0..0.25:75%" \
+  --knob "Level=0.0..0.2:500,0.2..1.0:1500" \
+  -j 8
+```
+*Result*: 75% of renders explore the edge-of-breakup transition, 25% cover saturation, and output volume is partitioned to avoid un-trainable low-noise floors.
+
+### Playbook 2: Discrete Switch Enumeration on Tube Preamps
+A high-gain amplifier may have multiple discrete voicing switches. To ensure every switch configuration is sufficiently represented:
+
+```bash
+livespice-gen render "circuits/Marshall JCM800 2203 preamp modded.schx" input.wav ./jcm_dataset \
+  --budget 1800 \
+  --duration 2.0 \
+  --switch "C1=0,1,2" \
+  --switch "C2=0,1,2" \
+  --speaker "S3" \
+  -j 8
+```
+*Result*: The engine splits the 1,800 render budget evenly across all 9 switch permutations (200 renders per discrete state), while continuously stratifying the tone and gain potentiometers.
+
+### Playbook 3: High-Fidelity Audio Setup (Anti-Aliasing)
+Severe diode clipping and pentode saturation introduce high-order harmonics that fold over the Nyquist frequency. For maximum numerical precision:
+
+```bash
+livespice-gen render spec.json ./dataset_hi_fi \
+  --rate 48000 \
+  --oversample 16 \
+  --iterations 32 \
+  --warmup 0.1 \
+  -j 4
+```
+*Result*: The internal Newton-Raphson solver steps at $48{,}000 \times 16 = 768{,}000\text{ Hz}$, suppressing aliasing artifacts by over 80 dB before decimation.
+
+### Playbook 4: Full-Track NAM Target Generation
+To re-amp an un-processed DI track through a circuit at fixed settings for direct NAM (Neural Amp Modeler) training:
+
+```bash
+livespice-gen process "circuits/Ibanez Tube Screamer TS-9.schx" v1_di.wav v1_target.wav \
+  --knob "Drive=0.6,Tone=0.5,Level=0.8" \
+  --oversample 8 \
+  --warmup 0.1
 ```
 
 ---
 
-### 4. Extreme Boundary Anchors (`--anchors`)
-Neural networks often fail at the exact extremes of travel (0% and 100%). Use `--anchors` to automatically inject extreme corner cases (all min, all noon, all max, alternating min/max):
+## 6. JSON Specification Schema
 
-```powershell
-livespice-gen plan circuit.spec.json --input guitar.wav --budget 500 --anchors
-```
-
----
-
-### 5. Multi-Speaker & Probe Tap Routing (`--speaker`)
-Schematics often contain multiple probe taps or speaker loads (e.g. Clean Out vs Lead Out, or Master Out vs Graphic EQ Out):
-
-```powershell
-# Target a specific probe component by name
-livespice-gen render amp.spec.json ./dataset --input guitar.wav --speaker "S9"
-```
-
----
-
-### 6. Full-Track Re-Amping / NAM Mode (`process`)
-Want to run a full 3-minute song or guitar solo through the schematic at fixed settings? Use `process`:
-
-```powershell
-livespice-gen process "Marshall JCM800 2203 Preamp.schx" solo_di.wav solo_amped.wav
-```
-
----
-
-## 🎛️ CLI Reference
-
-### Commands
-| Command | Description |
-|---|---|
-| `controls <circuit.schx>` | Discovers all pots, switches, multi-gangs, inputs, and speakers |
-| `spec <circuit.schx> [out.json]` | Emits a customizable JSON specification template |
-| `plan <spec.json \| circuit.schx in.wav>` | Analyzes excerpt distribution, bands, and gives time estimate |
-| `render <spec.json [outdir] \| circuit.schx in.wav outdir>` | Runs multi-threaded simulation and writes dataset |
-| `process <circuit.schx> <in.wav> [out.wav]` | Renders an entire audio track at fixed settings (NAM mode) |
-| `verify <dataset_dir>` | Audits dataset metadata, audio files, NaNs, clipping, and silence |
-
-### Options
-| Flag | Description | Default |
-|---|---|---|
-| `-j, --threads <n>` | Number of parallel worker solvers | All CPU Cores |
-| `--budget <n>` | Total number of render excerpts to create | Spec default |
-| `--duration <s>` | Excerpt length in seconds | `15.0` |
-| `--warmup <s>` | Pre-roll solver duration to settle DC bias pops | `0.05` |
-| `--rate <hz>` | Output audio sample rate | `48000` |
-| `--oversample <n>` | Oversampling multiplier (1, 2, 4, 8, 16, 32) | `2` |
-| `--iterations <n>` | Newton-Raphson iteration limit per sample | `8` |
-| `--normalize <peak>` | Master reference input peak normalization | `0.9` |
-| `--gain <db>` | Fixed input drive level in dB | (Uses range) |
-| `--gain-low <db>` | Minimum random drive level in dB | `-18.0` |
-| `--gain-high <db>` | Maximum random drive level in dB | `6.0` |
-| `--focus <spec>` | Quick area focus, e.g. `Gain=0..0.25:80%` | (None) |
-| `--knob <spec>` | Explicit knob strata, e.g. `Volume=0..0.2:500,0.2..1:1000` | Spec default |
-| `--switch <spec>` | Explicit switch positions, e.g. `Bright=1` or `Mode=0,2` | Spec default |
-| `--anchors` | Inject extreme boundary test corners | `false` |
-| `--joint <mode>` | `independent` \| `grid` \| `sweep` \| `sweepRandom` | `independent` |
-| `--time-range <s..s>`| Restrict audio excerpting to a time slice (e.g. `10..90`) | Full audio |
-| `--spans <mode>` | `signal` (energy-gated, skips silence) or `all` | `signal` |
-| `--speaker <name>` | Target speaker component name in schematic | (Sums all) |
-| `--resume <bool>` | Safely resume interrupted renders | `true` |
-| `--limit <n>` | Render only the first N jobs (for fast testing) | All |
-
----
-
-## 📋 JSON Specification Schema (`spec.json`)
+Specification files (`.spec.json`) define repeatable experimental protocols. Relative paths are resolved relative to the directory containing the JSON file.
 
 ```json5
 {
-  "circuit": "BOSS BD-2 Blues Driver.schx",
-  "budget": 2500,
-  "duration": 15.0,
+  "name": "MesaMarkIIC-LeadProfile",
+  "circuit": "circuits/Mark IIC+(++) Preamp_NOGEQ.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 2400,
+  "duration": 2.5,
   "joint": "independent",       // "independent" | "grid" | "sweep" | "sweepRandom"
-  "spans": "signal",            // "signal" (skip silence) | "all"
-  "timeRange": [10.0, 120.0],   // Optional: restrict excerpt window in seconds
+  "spans": "signal",            // "signal" (energy-gated) | "all"
+  "timeRange": [0.0, 180.0],    // Restrict excerpt selection window in seconds
   "render": {
     "sampleRate": 48000,
-    "oversample": 16,           // 1 to 32x oversampling
-    "iterations": 32,           // Newton-Raphson max iterations
+    "oversample": 8,            // 1, 2, 4, 8, 16, 32
+    "iterations": 16,           // Max Newton-Raphson iterations
     "normalize": 0.9,           // Master reference normalization
-    "warmup": 0.05,             // 50ms DC transient settling
-    "speaker": "S1"             // Target probe tap (optional)
+    "warmup": 0.05,             // DC settling pre-roll in seconds
+    "speaker": "S9"             // Specific probe tap identifier
   },
   "sampling": {
-    "gainDb": [-18.0, 6.0],     // Log-uniform drive level range
+    "gainDb": [-15.0, 6.0],     // Log-uniform drive level range in dB
     "seed": 42
   },
   "knobs": {
-    "Level": { "bands": [ [0.0, 1.0] ] },
-    "Tone":  { "bands": [ [0.0, 1.0] ] },
-    "Gain": {
+    "Lead Drive": {
       "bands": [
-        { "from": 0.0, "to": 0.2, "count": 1500, "note": "edge-of-breakup focus" },
-        { "from": 0.2, "to": 1.0, "count": 1000, "note": "high saturation" }
+        { "from": 0.0, "to": 0.3, "weight": 0.6, "note": "crunch boundary" },
+        { "from": 0.3, "to": 1.0, "weight": 0.4, "note": "lead saturation" }
       ]
     },
-    "BrightSwitch": {
-      "positions": [0, 1]       // Discrete switch sampling
+    "Pull Lead": {
+      "positions": [0, 1]       // Discrete switch positions to sample
+    },
+    "Pull Shift (++ mod)": {
+      "pin": 1                  // Lock 4-gang switch permanently to position 1
+    },
+    "Master 1": {
+      "bands": [ [0.2, 1.0] ]   // Prevent low-volume noise floor capture
     }
   }
 }
@@ -256,67 +320,226 @@ livespice-gen process "Marshall JCM800 2203 Preamp.schx" solo_di.wav solo_amped.
 
 ---
 
-## 📂 Output Dataset Structure
+## 7. Sampling Theory & Stratification
 
-Generated datasets are 100% compliant with standard neural network loaders:
+Uniform pseudo-random sampling exhibits Poisson clumping: regions of parameter space are over-sampled while other regions are omitted. `livespice-gen` implements **Stratified Latin Hypercube Sampling with Jittered Strata**:
 
-```text
-my_dataset/
-├── manifest.jsonl            # Master metadata & ground-truth table
-├── input/
-│   └── normalized.wav        # Standardized reference audio
-└── renders/
-    ├── Circuit_L10_T50_G20_t0.00-15.00s.wav
-    ├── Circuit_L80_T25_G90_t15.00-30.00s.wav
-    └── ...
+```
+0.0           0.2                       1.0 (Travel)
+ +-------------+-------------------------+
+ | Band 1 (60%)| Band 2 (40%)            |
+ |  x  x  x  x |   x      x      x       |  <- Jittered within uniform subdivisions
+ +-------------+-------------------------+
 ```
 
-### Manifest Format (`manifest.jsonl`)
-* **Header line**: Records global simulation settings, hashes of input audio and circuit schematic, oversample rates, and solver parameters.
-* **Row lines**:
-  ```json
-  {
-    "id": "BOSSBD2BluesDriver_L50_T50_G50_t0.00-15.00s",
-    "status": "ok",
-    "file": "BOSSBD2BluesDriver_L50_T50_G50_t0.00-15.00s.wav",
-    "knobs": { "Level": 0.5, "Tone": 0.5, "Gain": 0.5 },
-    "offset_s": 0.0,
-    "duration_s": 15.0,
-    "input_gain": 0.250266,
-    "origin": "independent",
-    "mean": -0.001679,
-    "peak": 0.585477,
-    "rms": 0.244479,
-    "clipped": 0,
-    "nonfinite": 0,
-    "flat": false
-  }
-  ```
+### Joint Sampling Modes (`--joint`)
+1. `independent` (Default): Knobs are sampled from their respective stratified bands independently. Provides optimal space-filling coverage across high-dimensional parameter spaces.
+2. `grid`: Evaluates Cartesian products across discrete points. Best suited for circuits with 1 to 3 controls.
+3. `sweep`: Varies parameters along continuous trajectories across successive excerpts. Ideal for training recurrent networks (GRU / LSTM) to learn memory and hysteresis effects.
+4. `sweepRandom`: Random walks through parameter space with bounded delta-steps per excerpt.
+
+### Boundary Anchor Sampling (`--anchors`)
+Neural networks often extrapolate poorly outside their convex training hull. Enabling `--anchors` injects deterministic boundary combinations:
+- All controls set to minimum ($0.0$).
+- All controls set to noon ($0.5$).
+- All controls set to maximum ($1.0$).
+- Alternating corner permutations ($0.0$ / $1.0$).
 
 ---
 
-## 🔬 Downstream Neural Training
+## 8. Analog Transient Settling & Warmup
 
-To train directly on this dataset using PyTorch / RTNeural:
-1. Load `input/normalized.wav` and scale it by each row's `input_gain`.
-2. Feed the audio into your model conditioned on the normalized `knobs` dictionary values (both continuous floats and discrete switch integers).
-3. Compute loss (e.g. Multi-Resolution STFT + ESR) against the target WAV in `renders/`.
+Analog circuits contain reactive storage components:
+- **Capacitors**: $i(t) = C \frac{dv(t)}{dt}$
+- **Inductors**: $v(t) = L \frac{di(t)}{dt}$
+
+When a transient simulation initializes, all initial conditions are assumed to be zero ($v_C(0) = 0\text{ V}, i_L(0) = 0\text{ A}$). In vacuum tube circuits operating with high plate voltages (e.g. $+250\text{ V}$ to $+400\text{ V}$), coupling capacitors require several cycles to charge to their steady-state DC operating point.
+
+```
+Without Warmup:
+[DC Offset Jump] ---> \___/\__/\___/\___ (Massive pop at t = 0)
+
+With Warmup (--warmup 0.05):
+[Pre-Roll Settling] | [Clean Excerpt Capture] ---> ~~~/\__/\___
+(Discarded)         | (Recorded to WAV)
+```
+
+Without warmup, rendered audio begins with a low-frequency thump or DC offset that corrupts neural network training losses (particularly Mean Squared Error and STFT magnitude). `livespice-gen` executes an unrecorded pre-roll step (default: $0.05\text{ s}$ / $50\text{ ms}$) prior to recording audio frames, ensuring clean DC baselines.
 
 ---
 
-## 🛠️ Publishing Releases
+## 9. Dataset Structure & Manifest Format
 
-To compile standalone single-file binaries:
+Datasets are generated with self-describing directory hierarchies:
 
-* **Windows:** `dotnet publish src/LiveSPICE-Generator.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/win-x64`
-* **Linux:** `dotnet publish src/LiveSPICE-Generator.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/linux-x64`
-* **macOS:** `dotnet publish src/LiveSPICE-Generator.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -o publish/osx-arm64`
+```text
+dataset_output/
+|-- manifest.jsonl
+|-- input/
+|   \-- normalized.wav
+\-- renders/
+    |-- BOSSBD2BluesDriver_L10_T50_G20_t0.00-2.00s.wav
+    |-- BOSSBD2BluesDriver_L80_T25_G90_t2.00-4.00s.wav
+    \-- ...
+```
 
-Zip the output folder (including `Components/`) and attach it to your GitHub Release!
+### The Manifest (`manifest.jsonl`)
+The manifest utilizes JSON Lines (newline-delimited JSON).
+
+#### Header Line
+```json
+{
+  "type": "dataset",
+  "circuit": "BOSS BD-2 Blues Driver.schx",
+  "circuit_sha256": "3993bb1ad2091525a3c240f775883d8f5017fc4bce6ce02950a2480f2d7b4640",
+  "input": "normalized.wav",
+  "input_sha256": "09c64142b6584528fbb486ec686ad9ade3b798475641019ac1ac33f318784236",
+  "input_v0dBFS": 1.0,
+  "sample_rate": 48000,
+  "oversample": 16,
+  "iterations": 32,
+  "duration_s": 2.0,
+  "generator": "livespice-gen",
+  "spec_sha256": "1c0ff1982e56fcb5b15021ce45b50bb45e5e7504645b77dff5ec108c9fd4443c",
+  "knobs": ["Level", "Tone", "Gain"]
+}
+```
+
+#### Row Line
+```json
+{
+  "id": "BOSSBD2BluesDriver_L50_T50_G50_t0.00-2.00s",
+  "status": "ok",
+  "file": "BOSSBD2BluesDriver_L50_T50_G50_t0.00-2.00s.wav",
+  "knobs": { "Level": 0.5, "Tone": 0.5, "Gain": 0.5 },
+  "offset_s": 0.0,
+  "duration_s": 2.0,
+  "input_gain": 0.250266,
+  "origin": "independent",
+  "mean": -0.001679,
+  "peak": 0.585477,
+  "rms": 0.244479,
+  "clipped": 0,
+  "nonfinite": 0,
+  "flat": false
+}
+```
 
 ---
 
-## 📜 License & Credits
+## 10. Downstream Neural Network Training
 
-* Licensed under the [MIT License](LICENSE).
-* Core SPICE simulation engine powered by [LiveSPICE](https://github.com/dsharlet/LiveSPICE) by Dmitry Sharlet.
+### Input Reconstruction
+Audio written to `renders/*.wav` reflects the input signal scaled by `input_gain`. To reconstruct the exact input tensor in PyTorch:
+
+```python
+import torch
+import soundfile as sf
+import json
+
+# 1. Load reference input audio
+ref_audio, sr = sf.read("dataset/input/normalized.wav", dtype="float32")
+
+# 2. Iterate manifest rows
+with open("dataset/manifest.jsonl", "r") as f:
+    header = json.loads(f.readline())
+    for line in f:
+        row = json.loads(line)
+        if row.get("status") != "ok":
+            continue
+            
+        start_idx = int(round(row["offset_s"] * sr))
+        length = int(round(row["duration_s"] * sr))
+        
+        # Exact input slice with dynamic drive applied
+        x = ref_audio[start_idx : start_idx + length] * row["input_gain"]
+        
+        # Target simulated audio
+        y, _ = sf.read(f"dataset/renders/{row['file']}", dtype="float32")
+        
+        # Conditioning vector (floats for pots, integers for switches)
+        cond = torch.tensor([row["knobs"][k] for k in header["knobs"]], dtype=torch.float32)
+```
+
+### Recommended Loss Functions
+When training recurrent (GRU/LSTM) or convolutional (TCN/WaveNet) audio models on circuit datasets, combine time-domain error with Multi-Resolution STFT spectral distance:
+
+$$\mathcal{L} = \mathcal{L}_{\text{ESR}} + \lambda \mathcal{L}_{\text{MR-STFT}}$$
+
+Where Error-to-Signal Ratio ($\text{ESR}$) is defined as:
+$$\mathcal{L}_{\text{ESR}} = \frac{\sum_{n} |y[n] - \hat{y}[n]|^2}{\sum_{n} |y[n]|^2 + \epsilon}$$
+
+---
+
+## 11. Troubleshooting & Numerical Solver Diagnostics
+
+### Circuit Convergence Failures (`status: failed`)
+- **Symptom**: Manifest rows show `"status": "failed"` and `"error": "Iteration limit reached"`.
+- **Cause**: High-gain nonlinear feedback loops (e.g. clipping diodes in high-gain op-amp loops) can oscillate during Newton-Raphson root finding if the time step is too large.
+- **Remedy**: Increase oversampling via `--oversample 16` or `--oversample 32` and increase iteration limits via `--iterations 32`.
+
+### DC Baseline Shift / Output Clicks
+- **Symptom**: Audio files contain loud clicks at sample index $0$.
+- **Cause**: Reactive components initializing from zero energy states.
+- **Remedy**: Ensure `--warmup` is set to at least `0.05` ($50\text{ ms}$) or `0.1` ($100\text{ ms}$).
+
+### Flat Silence Output (`flat: true`)
+- **Symptom**: `verify` flags flat audio lines.
+- **Cause**: Input signal placed in silent pause of guitar recording, or Master Volume / Level knob sampled at $0.0$.
+- **Remedy**: Set `--spans signal` to skip silent passages, and define a lower bound in your knob bands (e.g. `"Volume": { "bands": [ [0.15, 1.0] ] }`).
+
+---
+
+## 12. Bundled Examples
+
+The `examples/` directory contains self-contained configurations and schematics:
+
+| Specification | Target Schematic | Circuit Topology | Highlight Features |
+|---|---|---|---|
+| `bd2-breakup-focus.spec.json` | `BOSS BD-2 Blues Driver.schx` | Discrete JFET + Op-Amp Clipping | Stratified edge-of-breakup focus; dual-gang pot |
+| `ts9-classic-drive.spec.json` | `Ibanez Tube Screamer TS-9.schx` | Symmetrical Silicon Diode Clipper | Soft-clipping curve; active RC tone stack |
+| `bigmuff-balanced.spec.json` | `Big Muff Pi.schx` | 4-Stage BJT Transistor Fuzz | Mid-scoop tone filter sweep; extreme fuzz saturation |
+| `jcm800-switched-preamp.spec.json`| `Marshall JCM800 2203 modded.schx`| High-Gain Cascaded 12AX7 Tubes | Dual `SP3T` (3-throw) switches (`C1`, `C2`); probe tap `S3` |
+| `mark2c-multigang-preamp.spec.json`| `Mark IIC+(++) Preamp_NOGEQ.schx` | Boutique High-Voltage Tube Amp | 4-gang switch (`Pull Shift x4`); 3-gang switch; 240V tap `S9` |
+| `crybaby-wah-sweep.spec.json` | `Dunlop Cry Baby GCB-95.schx` | BJT Active LC Inductor Resonator | Continuous sweep mode along treadle travel |
+
+Test any example immediately:
+```bash
+livespice-gen plan examples/bd2-breakup-focus.spec.json
+```
+
+---
+
+## 13. Continuous Integration & Release Publishing
+
+The repository includes a GitHub Actions CI/CD configuration (`.github/workflows/ci.yml`).
+
+### Automated Matrix Testing
+On every commit or pull request, the workflow:
+1. Checks out the repository and initializes git submodules recursively.
+2. Builds the solution on `windows-latest`, `ubuntu-latest`, and `macos-latest`.
+3. Executes CLI plan and validation checks.
+
+### Automated Release Builds
+Pushing a semver release tag (e.g. `git tag v1.0.0 && git push origin v1.0.0`) triggers the automated release builder. The workflow:
+1. Compiles self-contained, single-file executables for Windows x64.
+2. Bundles the required `Components/` XML libraries.
+3. Compresses the release archive into `livespice-gen-v1.0.0-win-x64.zip`.
+4. Automatically attaches the binary package to the GitHub Release.
+
+---
+## About Me
+
+**Yahia Kemari** — Telecommunications Engineer (M2), USTHB, Algeria.
+Interested in networks, infrastructure, cybersecurity, and automation.
+
+- LinkedIn: https://www.linkedin.com/in/yahia-kemari/
+- Email: contact.kemari.yahia@gmail.com
+
+Open to opportunities
+
+## 14. License & Acknowledgments
+
+- **LiveSPICE-Generator**: Licensed under the [MIT License](LICENSE).
+- **LiveSPICE Core**: Powered by the LiveSPICE circuit simulation framework by Dmitry Sharlet.
+- Designed for audio researchers, DSP engineers, and machine learning practitioners creating real-time virtual analog instruments.
