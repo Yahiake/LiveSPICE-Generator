@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Orange-Rockerverb-HighGain",
+  "description": "Modern 4-stage cascaded British tube preamp featuring dual-gang Gain pot and thick harmonic saturation.",
+  "circuit": "circuits/Orange Rockerverb 50 Preamp.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 2000,
+  "duration": 2.0,
+  "joint": "independent",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.9,
+    "warmup": 0.06,
+    "speaker": "S3"
+  },
+  "sampling": {
+    "gainDb": [-18.0, 6.0],
+    "seed": 1010
+  },
+  "knobs": {
+    "Gain": {
+      "bands": [
+        { "from": 0.05, "to": 0.4, "weight": 0.45, "note": "Vintage British crunch" },
+        { "from": 0.4, "to": 1.0, "weight": 0.55, "note": "Modern thick saturated lead distortion" }
+      ]
+    },
+    "Bass1": {
+      "bands": [ [0.1, 0.9] ]
+    },
+    "Middle": {
+      "bands": [ [0.1, 0.9] ]
+    },
+    "Treble": {
+      "bands": [ [0.1, 0.9] ]
+    },
+    "Volume": {
+      "bands": [ [0.2, 1.0] ]
+    }
+  }
+}

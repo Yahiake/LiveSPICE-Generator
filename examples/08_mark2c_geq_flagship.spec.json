@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Mesa-MarkIIC-GraphicEQ-Flagship",
+  "description": "Flagship 20-control amplifier configuration with 5-band Graphic EQ sliders and multi-gang switches.",
+  "circuit": "circuits/Mark IIC+(++) Preamp_GEQ.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 3000,
+  "duration": 2.0,
+  "joint": "independent",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.9,
+    "warmup": 0.05,
+    "speaker": "S9"
+  },
+  "sampling": {
+    "gainDb": [-15.0, 6.0],
+    "seed": 707
+  },
+  "knobs": {
+    "Vol1": { "bands": [ [0.3, 0.8] ] },
+    "Pull Bright (Vol1)": { "positions": [0, 1] },
+    "Treble": { "bands": [ [0.3, 0.8] ] },
+    "Pull Shift (Treble)": { "positions": [0, 1] },
+    "Bass": { "bands": [ [0.2, 0.7] ] },
+    "Pull Shift (Bass)": { "positions": [0, 1] },
+    "Middle": { "bands": [ [0.2, 0.7] ] },
+    "Pull Shift (++ mod)": { "pin": 1 },
+    "Master 1": { "bands": [ [0.3, 0.8] ] },
+    "Pull Deep (Master1)": { "positions": [0, 1] },
+    "Lead Drive": { "bands": [ [0.3, 0.9] ] },
+    "Pull Lead": { "pin": 1 },
+    "Lead Master": { "bands": [ [0.3, 0.8] ] },
+    "Pull Bright (Lead Master)": { "positions": [0, 1] },
+    "80hz": { "bands": [ [0.1, 0.9] ] },
+    "240hz": { "bands": [ [0.1, 0.9] ] },
+    "750hz": { "bands": [ [0.1, 0.9] ] },
+    "2200hz": { "bands": [ [0.1, 0.9] ] },
+    "6600hz": { "bands": [ [0.1, 0.9] ] },
+    "GEQ": { "pin": 1 }
+  }
+}

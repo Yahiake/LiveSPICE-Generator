@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Marshall-JCM800-Classic5Knob",
+  "description": "Standard 5-knob British 12AX7 tube preamp with FMV passive tone stack.",
+  "circuit": "circuits/Marshall JCM800 2203 Preamp.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 2000,
+  "duration": 2.0,
+  "joint": "independent",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.9,
+    "warmup": 0.05,
+    "speaker": "S3"
+  },
+  "sampling": {
+    "gainDb": [-18.0, 6.0],
+    "seed": 505
+  },
+  "knobs": {
+    "Gain": {
+      "bands": [
+        { "from": 0.0, "to": 0.35, "weight": 0.5, "note": "Edge of breakup and crunchy crunch" },
+        { "from": 0.35, "to": 1.0, "weight": 0.5, "note": "Saturated classic rock roar" }
+      ]
+    },
+    "Bass1": {
+      "bands": [ [0.1, 0.9] ]
+    },
+    "Middle": {
+      "bands": [ [0.1, 0.9] ]
+    },
+    "Treble": {
+      "bands": [ [0.1, 0.9] ]
+    },
+    "Volume": {
+      "bands": [ [0.2, 1.0] ]
+    }
+  }
+}

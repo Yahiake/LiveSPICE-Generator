@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "BOSS-BD2-BreakupStratified",
+  "description": "Stratified edge-of-breakup dataset targeting subtle touch dynamics and dual-gang pot drive.",
+  "circuit": "circuits/BOSS BD-2 Blues Driver.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 2000,
+  "duration": 2.0,
+  "joint": "independent",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.9,
+    "warmup": 0.05
+  },
+  "sampling": {
+    "gainDb": [-18.0, 6.0],
+    "seed": 42
+  },
+  "knobs": {
+    "Gain": {
+      "bands": [
+        { "from": 0.0, "to": 0.25, "weight": 0.65, "note": "Fine-grained edge-of-breakup transition" },
+        { "from": 0.25, "to": 1.0, "weight": 0.35, "note": "Medium to saturated overdrive" }
+      ]
+    },
+    "Level": {
+      "bands": [
+        { "from": 0.15, "to": 1.0, "weight": 1.0, "note": "Floor protection against un-trainable low-noise floors" }
+      ]
+    },
+    "Tone": {
+      "bands": [
+        { "from": 0.0, "to": 1.0, "weight": 1.0, "note": "Full passive tone filter sweep" }
+      ]
+    }
+  }
+}

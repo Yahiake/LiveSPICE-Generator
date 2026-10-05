@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "BigMuff-FuzzSaturation",
+  "description": "4-stage BJT transistor fuzz with extreme clipping and passive mid-scoop tone control.",
+  "circuit": "circuits/Big Muff Pi.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 2500,
+  "duration": 2.0,
+  "joint": "independent",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.85,
+    "warmup": 0.08
+  },
+  "sampling": {
+    "gainDb": [-12.0, 6.0],
+    "seed": 202
+  },
+  "knobs": {
+    "Sustain": {
+      "bands": [
+        { "from": 0.05, "to": 0.4, "weight": 0.45, "note": "Low fuzz threshold" },
+        { "from": 0.4, "to": 1.0, "weight": 0.55, "note": "Wall-of-fuzz continuous sustain" }
+      ]
+    },
+    "Tone": {
+      "bands": [
+        { "from": 0.0, "to": 0.5, "weight": 0.5, "note": "Dark mid-scooped bass emphasis" },
+        { "from": 0.5, "to": 1.0, "weight": 0.5, "note": "Bright treble bite filter sweep" }
+      ]
+    },
+    "Volume": {
+      "bands": [
+        { "from": 0.25, "to": 1.0, "weight": 1.0, "note": "Usable output travel" }
+      ]
+    }
+  }
+}

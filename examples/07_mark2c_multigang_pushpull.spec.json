@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Mesa-MarkIIC-PushPullSwitches",
+  "description": "Boutique high-voltage tube preamp featuring 4-gang and 3-gang push-pull voicing switches.",
+  "circuit": "circuits/Mark IIC+(++) Preamp_NOGEQ.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 2400,
+  "duration": 2.0,
+  "joint": "independent",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.9,
+    "warmup": 0.05,
+    "speaker": "S9"
+  },
+  "sampling": {
+    "gainDb": [-15.0, 6.0],
+    "seed": 606
+  },
+  "knobs": {
+    "Vol1": {
+      "bands": [ [0.2, 0.9] ]
+    },
+    "Pull Bright (Vol1)": {
+      "positions": [0, 1]
+    },
+    "Treble": {
+      "bands": [ [0.3, 0.9] ]
+    },
+    "Pull Shift (Treble)": {
+      "positions": [0, 1]
+    },
+    "Bass": {
+      "bands": [ [0.1, 0.8] ]
+    },
+    "Pull Shift (Bass)": {
+      "positions": [0, 1]
+    },
+    "Middle": {
+      "bands": [ [0.1, 0.8] ]
+    },
+    "Pull Shift (++ mod)": {
+      "pin": 1
+    },
+    "Master 1": {
+      "bands": [ [0.2, 0.9] ]
+    },
+    "Pull Deep (Master1)": {
+      "positions": [0, 1]
+    },
+    "Lead Drive": {
+      "bands": [
+        { "from": 0.1, "to": 0.5, "weight": 0.6, "note": "Dynamic tube lead breakup" },
+        { "from": 0.5, "to": 1.0, "weight": 0.4, "note": "High-gain liquid sustain" }
+      ]
+    },
+    "Pull Lead": {
+      "positions": [0, 1]
+    },
+    "Lead Master": {
+      "bands": [ [0.3, 0.9] ]
+    },
+    "Pull Bright (Lead Master)": {
+      "positions": [0, 1]
+    }
+  }
+}

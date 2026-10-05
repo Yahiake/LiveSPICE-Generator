@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Marshall-JCM800-ModdedSwitches",
+  "description": "High-gain cascading 12AX7 tube preamp featuring dual 3-position (SP3T) voicing switches.",
+  "circuit": "circuits/Marshall JCM800 2203 preamp modded.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 1800,
+  "duration": 2.0,
+  "joint": "independent",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.9,
+    "warmup": 0.05,
+    "speaker": "S3"
+  },
+  "sampling": {
+    "gainDb": [-18.0, 6.0],
+    "seed": 404
+  },
+  "knobs": {
+    "Gain 1": {
+      "bands": [ [0.0, 1.0] ]
+    },
+    "C1": {
+      "positions": [0, 1, 2]
+    },
+    "Gain 2": {
+      "bands": [ [0.0, 1.0] ]
+    },
+    "C2": {
+      "positions": [0, 1, 2]
+    },
+    "Bass": {
+      "bands": [ [0.1, 0.9] ]
+    },
+    "Middle": {
+      "bands": [ [0.1, 0.9] ]
+    },
+    "Treble": {
+      "bands": [ [0.1, 0.9] ]
+    },
+    "Volume": {
+      "bands": [ [0.2, 1.0] ]
+    }
+  }
+}

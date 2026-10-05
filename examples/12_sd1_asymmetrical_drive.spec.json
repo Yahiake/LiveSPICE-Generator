@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "BOSS-SD1-AsymmetricalDrive",
+  "description": "Asymmetrical diode clipping overdrive producing prominent even-order harmonics and tube-like response.",
+  "circuit": "circuits/Boss Super Overdrive SD-1.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 2000,
+  "duration": 2.0,
+  "joint": "independent",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.9,
+    "warmup": 0.05
+  },
+  "sampling": {
+    "gainDb": [-15.0, 6.0],
+    "seed": 1111
+  },
+  "knobs": {
+    "Drive": {
+      "bands": [
+        { "from": 0.0, "to": 0.35, "weight": 0.6, "note": "Dynamic soft-clipping sweet spot" },
+        { "from": 0.35, "to": 1.0, "weight": 0.4, "note": "Asymmetric harmonic saturation" }
+      ]
+    },
+    "Level": {
+      "bands": [
+        { "from": 0.2, "to": 1.0, "weight": 1.0, "note": "Output buffer volume range" }
+      ]
+    },
+    "Tone": {
+      "bands": [
+        { "from": 0.0, "to": 1.0, "weight": 1.0, "note": "Passive low-pass filter" }
+      ]
+    }
+  }
+}

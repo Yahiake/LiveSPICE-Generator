@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Dunlop-CryBaby-WahSweep",
+  "description": "Continuous sweep trajectory along foot treadle travel for training recurrent networks on resonant LC filter transitions.",
+  "circuit": "circuits/Dunlop Cry Baby GCB-95.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 1000,
+  "duration": 2.0,
+  "joint": "sweep",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.9,
+    "warmup": 0.05
+  },
+  "sampling": {
+    "gainDb": [-10.0, 3.0],
+    "seed": 909
+  },
+  "knobs": {
+    "Filter": {
+      "bands": [
+        { "from": 0.0, "to": 1.0, "weight": 1.0, "note": "Full sweep from bass heel-down to resonant treble toe-down" }
+      ]
+    }
+  }
+}

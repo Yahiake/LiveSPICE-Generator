@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "ProCo-Rat-OpAmpClipper",
+  "description": "High-gain op-amp hard-clipping distortion with reverse-logarithmic Filter tone control.",
+  "circuit": "circuits/Pro Co Rat.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 2000,
+  "duration": 2.0,
+  "joint": "independent",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.85,
+    "warmup": 0.05
+  },
+  "sampling": {
+    "gainDb": [-15.0, 6.0],
+    "seed": 303
+  },
+  "knobs": {
+    "Distortion": {
+      "bands": [
+        { "from": 0.0, "to": 0.3, "weight": 0.6, "note": "Low drive overdrive / crunch" },
+        { "from": 0.3, "to": 1.0, "weight": 0.4, "note": "Full hard-clipping distortion" }
+      ]
+    },
+    "Tone": {
+      "bands": [
+        { "from": 0.0, "to": 1.0, "weight": 1.0, "note": "Reverse-acting low-pass filter" }
+      ]
+    },
+    "Volume": {
+      "bands": [
+        { "from": 0.2, "to": 1.0, "weight": 1.0, "note": "Output level" }
+      ]
+    }
+  }
+}

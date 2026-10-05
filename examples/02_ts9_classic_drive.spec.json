@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Ibanez-TS9-ClassicDrive",
+  "description": "Standard overdrive training spec for the classic symmetrical silicon diode soft-clipper and active mid-boost.",
+  "circuit": "circuits/Ibanez Tube Screamer TS-9.schx",
+  "input": "audio/sample_di.wav",
+  "budget": 2000,
+  "duration": 2.0,
+  "joint": "independent",
+  "spans": "signal",
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 16,
+    "iterations": 32,
+    "normalize": 0.9,
+    "warmup": 0.05
+  },
+  "sampling": {
+    "gainDb": [-15.0, 6.0],
+    "seed": 101
+  },
+  "knobs": {
+    "Drive": {
+      "bands": [
+        { "from": 0.0, "to": 0.35, "weight": 0.55, "note": "Clean boost into soft diode conduction" },
+        { "from": 0.35, "to": 1.0, "weight": 0.45, "note": "Compressed mid-heavy overdrive" }
+      ]
+    },
+    "Level": {
+      "bands": [
+        { "from": 0.2, "to": 1.0, "weight": 1.0, "note": "Unity and boost output range" }
+      ]
+    },
+    "Tone": {
+      "bands": [
+        { "from": 0.0, "to": 1.0, "weight": 1.0, "note": "Active RC tone contour" }
+      ]
+    }
+  }
+}
