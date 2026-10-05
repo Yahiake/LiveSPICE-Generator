@@ -1,0 +1,37 @@
+{
+  "name": "BigMuffPi-Balanced",
+  "circuit": "../LiveSPICE/Big Muff Pi.schx",
+  "input": "input.wav",
+  "duration": 15.0,
+  "render": {
+    "sampleRate": 48000,
+    "oversample": 2,
+    "iterations": 8,
+    "normalize": 0.9
+  },
+  "sampling": {
+    "joint": "independent",
+    "spans": "signal",
+    "gainDb": [-18.0, 6.0],
+    "seed": 1
+  },
+  "knobs": {
+    "Volume": {
+      "bands": [
+        { "from": 0.0, "to": 0.15, "count": 800, "note": "quiet output region and low noise floor" },
+        { "from": 0.15, "to": 1.0, "count": 1200, "note": "audible performance travel" }
+      ]
+    },
+    "Sustain": {
+      "bands": [
+        { "from": 0.0, "to": 0.3, "count": 800, "note": "low fuzz edge" },
+        { "from": 0.3, "to": 1.0, "count": 1200, "note": "compressed fuzz saturation" }
+      ]
+    },
+    "Tone": {
+      "bands": [
+        { "from": 0.0, "to": 1.0, "count": 2000, "note": "mid-scoop tone stack sweep" }
+      ]
+    }
+  }
+}
