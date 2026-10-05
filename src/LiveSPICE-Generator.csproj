@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <AssemblyName>livespice-gen</AssemblyName>
+    <RootNamespace>LiveSpiceGen</RootNamespace>
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!--
+      Where the LiveSPICE source lives.
+
+      Defaults to third_party/LiveSPICE so that a fresh clone of this repository is
+      self-contained after running setup.ps1, and so that a published repository never
+      contains a hardcoded path to somebody else's disk. MSBuild promotes environment
+      variables to properties, so LiveSpiceRoot=<path> in the shell also works, which is
+      how it is pointed at an existing checkout during development.
+    -->
+    <LiveSpiceRoot Condition="'$(LiveSpiceRoot)' == '' and Exists('$(MSBuildThisFileDirectory)..\third_party\LiveSPICE\Circuit\Circuit.csproj')">$(MSBuildThisFileDirectory)..\third_party\LiveSPICE</LiveSpiceRoot>
+    <LiveSpiceRoot Condition="'$(LiveSpiceRoot)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\LiveSPICE\Circuit\Circuit.csproj')">$(MSBuildThisFileDirectory)..\..\LiveSPICE</LiveSpiceRoot>
+    <LiveSpiceRoot Condition="'$(LiveSpiceRoot)' == '' and Exists('$(MSBuildThisFileDirectory)..\LiveSPICE\Circuit\Circuit.csproj')">$(MSBuildThisFileDirectory)..\LiveSPICE</LiveSpiceRoot>
+    <LiveSpiceRoot Condition="'$(LiveSpiceRoot)' == ''">$(MSBuildThisFileDirectory)..\third_party\LiveSPICE</LiveSpiceRoot>
+    <LiveSpiceRoot>$([System.IO.Path]::GetFullPath('$(LiveSpiceRoot)'))</LiveSpiceRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(LiveSpiceRoot)\Circuit\Circuit.csproj" />
+    <ProjectReference Include="$(LiveSpiceRoot)\ComputerAlgebra\ComputerAlgebra\ComputerAlgebra.csproj" />
+    <ProjectReference Include="$(LiveSpiceRoot)\Util\Util.csproj" />
+  </ItemGroup>
+
+  <Target Name="CheckLiveSpicePresent" BeforeTargets="ResolveProjectReferences">
+    <Error Condition="!Exists('$(LiveSpiceRoot)\Circuit\Circuit.csproj')"
+           Text="LiveSPICE was not found at '$(LiveSpiceRoot)'.
+
+Run setup.ps1 to fetch it into third_party\LiveSPICE, or set LiveSpiceRoot to an existing checkout:
+
+  $env:LiveSpiceRoot = 'C:\path\to\LiveSPICE'" />
+    <Error Condition="!Exists('$(LiveSpiceRoot)\ComputerAlgebra\ComputerAlgebra\ComputerAlgebra.csproj')"
+           Text="ComputerAlgebra was not found at '$(LiveSpiceRoot)\ComputerAlgebra'.
+
+LiveSPICE requires the ComputerAlgebra git submodule. Run:
+  git -C '$(LiveSpiceRoot)' submodule update --init --recursive" />
+  </Target>
+
+</Project>
