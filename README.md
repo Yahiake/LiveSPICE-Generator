@@ -569,14 +569,6 @@ float out = model.forward(inputs);
 
 ---
 
-## 15. Automated CI/CD & Cross-Platform Releases
-
-The repository includes a complete GitHub Actions CI/CD pipeline (`.github/workflows/ci.yml`):
-- **Automated Matrix Testing**: Builds and tests on `windows-latest`, `ubuntu-latest`, and `macos-latest` on every push or pull request.
-- **Automated Release Packaging**: Tagging a release (e.g. `git tag v1.0.0 && git push origin v1.0.0`) automatically compiles a single-file self-contained binary, bundles all `Components/` XML libraries, and attaches the zip archive directly to GitHub Releases.
-
----
-
 ## About Me
 
 **Yahia Kemari** — Telecommunications Engineer (M2), USTHB, Algeria.
@@ -590,5 +582,5 @@ Interested in networks, infrastructure, cybersecurity, and automation.
 ## 16. License & Acknowledgments
 
 - **LiveSPICE-Generator**: Licensed under the [MIT License](LICENSE).
-- **LiveSPICE Core**: Powered by the LiveSPICE circuit simulation framework by Dmitry Sharlet.
+- [**LiveSPICE Core**](https://github.com/dsharlet/LiveSPICE): Powered by the LiveSPICE circuit simulation framework by DSharlet.
 - Built for audio researchers, DSP developers, and neural modeling engineers.
